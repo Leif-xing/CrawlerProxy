@@ -1,0 +1,86 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+@author ----> leif.xing
+@mail   ----> leif.xing@gmail.com
+"""
+import redis
+from optparse import OptionParser
+
+format_str = "-" * 50
+r = redis.StrictRedis(host="localhost", port=6379, decode_responses=True)
+
+
+def parse_args():
+    parser = OptionParser()
+    parser.add_option('-d', '--dump', action='store_true', dest='dump',
+                      help='Dump redis keys')
+    parser.add_option('-r', '--remove', action='store_true', dest='remove',
+                      help='Remove all redis keys')
+    parser.add_option('-c', '--clear', action='store_true', dest='clear',
+                      help='Clear one redis key')
+    parser.add_option('-k', '--key', action='store', dest='key',
+                      help='Specified key')
+    return parser.parse_args()
+
+
+def get_redis_keys():
+    return r.keys("*")
+
+
+def redis_key_type(rds_key):
+    return r.type(rds_key)
+
+
+def print_redis_keys():
+    print(format_str + "Redis keys" + format_str)
+    print(get_redis_keys())
+
+
+def dump_redis_key(rds_key):
+    key_type = redis_key_type(rds_key)
+    if "string" == key_type:
+        return r.get(rds_key)
+    elif "list" == key_type:
+        return r.lrange(rds_key, 0, r.llen(rds_key))
+    elif "hash" == key_type:
+        return r.hgetall(rds_key)
+    elif "set" == key_type:
+        return r.smembers(rds_key)
+    elif "zset" == key_type:
+        return r.zrange(rds_key, 0, r.zcard(rds_key))
+    else:
+        return ""
+
+
+def dump_keys():
+    print_redis_keys()
+    for redis_key in get_redis_keys():
+        if redis_key:
+            print(format_str + ' ' + redis_key + ' ' + format_str)
+            print(dump_redis_key(redis_key))
+
+
+def remove_keys():
+    for redis_key in get_redis_keys():
+        r.delete(redis_key)
+
+
+def delete_key(redis_key):
+    r.delete(redis_key)
+
+
+def main():
+    (options, args) = parse_args()
+    if options.dump:
+        dump_keys()
+    elif options.remove:
+        remove_keys()
+    elif options.clear:
+        delete_key(options.key)
+    else:
+        print('Param error, please check by -h!')
+
+
+if __name__ == '__main__':
+    main()
